@@ -1,5 +1,19 @@
 # Verilog CPU with Multi-Stage Pipeline and 100% Accurate Branch Prediction
 
+---
+
+website1: https://berkeleybear22ryan.github.io/CPU_INFO/
+
+github1: https://github.com/berkeleybear22ryan/CPU_INFO
+
+---
+
+website2: https://berkeleybear22ryan.github.io/CPU_RAN/
+
+github2: https://github.com/berkeleybear22ryan/CPU_RAN
+
+---
+
 This project implements a basic CPU using Verilog, adhering to the **RV32I standard** from the RISC-V instruction set architecture (ISA). The CPU features a multi-stage pipeline design, enabling efficient instruction processing and high performance. One of the key highlights of this CPU is its **100% accurate branch prediction**, allowing it to handle control flow changes without delays due to incorrect branch predictions.
 
 ### Key Features:
