@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RV32I -- CPU CORE -- Ryan Nader</title>
+    <style>
+
+        /* Ensure the body and html take up the full screen */
+        html, body {
+            margin: 0;
+            padding: 0;
+            background-color: #050505; /* Optional dark background */
+        }
+
+        /* Body styles */
+        body {
+            font-family: "Times New Roman", sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            color: #ababab;
+            font-size: 12px;
+        }
+
+        p {
+            text-align: justify;
+            margin-top: 0.5em;
+            margin-bottom: 1.5em;
+        }
+
+        h1, h2, h3 {
+            margin-bottom: 1em;
+            color: #ffffff;
+        }
+
+        /* Style for code formatting */
+        code, pre {
+            font-family: Consolas, "Courier New", monospace;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            /*padding: 10px;*/
+            border-radius: 4px;
+            overflow-x: auto; /* Allow horizontal scrolling */
+        }
+
+        pre {
+            margin-top: 1.5em;
+            white-space: pre; /* Preserve whitespace */
+        }
+
+        /* Image container */
+        #image-container {
+            width: 100%;
+            height: 80vh; /* Adjust as needed */
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+            margin-bottom: 1.5em;
+            border: 1px solid #ababab;
+        }
+
+        #image-container:active {
+            cursor: grabbing;
+        }
+
+        #design-image {
+            user-select: none;
+            -webkit-user-drag: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+        }
+
+        /* Ensure that the content below the image is accessible */
+        #content {
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+
+<h1>RV32I -- CPU CORE -- Ryan Nader</h1>
+<p>PLEASE CLICK WEBSITE ...</p>
+<p>Website: <a href="https://berkeleybear22ryan.github.io/CPU_RAN/" target="_blank">https://berkeleybear22ryan.github.io/CPU_RAN/</a></p>
+<p>Above is the website where you can see my CPU execute code for 6 C files and the code for the c files is below the diagram:</p>
+<p>Also on the website it shows how the c files run when on my specific cpu as well.</p>
+<p>On the other website I include the assembly code, the hex version and the binary and the program counter for the current line of the code.</p>
+<p>Furthermore, I added the amount of hits each line so you can see the coverage as well as the stage number so you can see which instruction is in which stage.</p>
+<p>You can also change the speed on the bottom right by increasing the cycles per second</p>
+<p>IMPORTANT: you can also see the value on the third stage which corresponds to the <code>mux_data_from_stage_3_in_stage_3</code> value which will depending on the instruction have the value like say the current fib number as this is where the output will be.</p>
+<p>... you can see <code>mux_data_from_stage_3_in_stage_3</code> if you go to the very right of the doc</p>
+<p>and you can navigate it by clicking and dragging ...</p>
+
+
+<h2>CPU Design</h2>
+<p>Below is the detailed design of my RV32I CPU core:</p>
+
+<!-- Image container with zoom and pan functionality -->
+<div id="image-container">
+    <img src="./design.png" alt="CPU Design" id="design-image">
+</div>
+
+
+
+
+
+
+<div id="content">
+
+    <h2>(1) cachetest.c</h2>
+    <p>This program tests the cache functionality of the CPU by generating a pseudorandom binary sequence (PRBS) and performing calculations to verify cache operations.</p>
+    <pre><code>#include "types.h"
+#include "memory_map.h"
+
+// Source: one of the bmark tests from ASIC lab
+// John C. Wright
+// johnwright@eecs.berkeley.edu
+// Do some random stuff to test EECS151/251A rv32ui processors
+
+#define PRBS  10
+#define CONST 1011556
+
+#define NUMELTS (1<<PRBS)-1
+#define MASK (1<<(PRBS-1))-1
+
+unsigned int assert_equals(unsigned int a, unsigned int b);
+int x[NUMELTS];
+
+void main() {
+  csr_tohost(0);
+  x[0] = 1;
+  int i;
+  for(i = 1; i < NUMELTS; i++) {
+    x[i] = ((x[i-1] >> 1) & MASK) | (((x[i-1] & 1) ^ ((x[i-1] & 2) >> 1)) << (PRBS-1));
+  }
+
+  int y = 0;
+  for(i = 0; i < NUMELTS; i++) {
+    y += x[i] + x[NUMELTS-1-i];
+  }
+
+  if(assert_equals(y, CONST)) {
+    csr_tohost(1);
+  } else {
+    csr_tohost(2);
+  }
+
+  // spin
+  for( ; ; ) {
+    asm volatile ("nop");
+  }
+}
+
+unsigned int assert_equals(unsigned int a, unsigned int b) {
+  return (a == b);
+}</code></pre>
+
+    <h2>(2) fib.c</h2>
+    <p>This program calculates the Fibonacci sequence up to a specified number of elements, testing the CPU's ability to handle iterative calculations and memory operations.</p>
+    <pre><code>#include "types.h"
+#include "memory_map.h"
+
+// Source: one of the bmark tests from ASIC lab
+// John C. Wright
+// johnwright@eecs.berkeley.edu
+// Do some random stuff to test EECS151/251A rv32ui processors
+
+#define NUMELTS 150
+
+uint32_t assert_equals(uint32_t a, uint32_t b);
+int x[NUMELTS];
+
+void main() {
+  csr_tohost(0);
+  x[0] = 0;
+  x[1] = 1;
+  int i;
+  for(i = 2; i < NUMELTS; i++) {
+    x[i] = x[i-1] + x[i-2];
+  }
+
+  if (assert_equals(x[35], 9227465)) {
+    csr_tohost(1);
+  } else {
+    csr_tohost(2);
+  }
+
+  // spin
+  for( ; ; ) {
+    asm volatile ("nop");
+  }
+}
+
+uint32_t assert_equals(uint32_t a, uint32_t b) {
+  return (a == b);
+}</code></pre>
+
+    <h2>(3) replace.c</h2>
+    <p>This program tests the CPU's data replacement policies by performing operations that cause cache lines to be replaced, ensuring that cache coherency and replacement strategies are functioning correctly.</p>
+    <pre><code>#include "types.h"
+#include "memory_map.h"
+
+// Source: one of the bmark tests from ASIC lab
+// John C. Wright
+// johnwright@eecs.berkeley.edu
+// Do some random stuff to test EECS151/251A rv32ui processors
+
+#define NUMELTS 64
+#define CONST   2080
+
+#define MASK (1<<31)-1
+
+unsigned int assert_equals(unsigned int a, unsigned int b);
+int x[NUMELTS];
+int y[NUMELTS];
+
+void main() {
+  csr_tohost(0);
+  int i;
+  int j;
+  for(i = 0; i < NUMELTS; i++) {
+    x[i] = i + 1;
+  }
+
+  for(i = 0; i < NUMELTS; i+=4) {
+    y[i] = 0;
+    for(j=0; j < i+1; j++) {
+      y[i] = y[i] + x[j];
+    }
+  }
+
+  for(i = 1; i < NUMELTS; i+=4) {
+    y[i] = 0;
+    for(j=0; j < i+1; j++) {
+      y[i] = y[i] + x[j];
+    }
+  }
+
+  for(i = 2; i < NUMELTS; i+=4) {
+    y[i] = 0;
+    for(j=0; j < i+1; j++) {
+      y[i] = y[i] + x[j];
+    }
+  }
+
+  for(i = 3; i < NUMELTS; i+=4) {
+    y[i] = 0;
+    for(j=0; j < i+1; j++) {
+      y[i] = y[i] + x[j];
+    }
+  }
+
+  if(assert_equals(y[NUMELTS-1], CONST)) {
+    csr_tohost(1);
+  } else {
+    csr_tohost(2);
+  }
+
+  // spin
+  for( ; ; ) {
+    asm volatile ("nop");
+  }
+
+}
+
+unsigned int assert_equals(unsigned int a, unsigned int b) {
+  return (a == b);
+}</code></pre>
+
+    <h2>(4) strcmp.c</h2>
+    <p>This program uses the standard <code>strcmp</code> function to compare strings, testing the CPU's ability to handle standard library functions and string operations.</p>
+    <pre><code>#include "string.h"
+#include "memory_map.h"
+
+int main(void) {
+    csr_tohost(0);
+    char str[10] = "EECS151";
+
+    if (strcmp(str ,"EECS151") == 0) {
+        // pass
+        csr_tohost(1);
+    } else {
+        // fail code 2
+        csr_tohost(2);
+    }
+
+    // spin
+    for( ; ; ) {
+        asm volatile ("nop");
+    }
+}</code></pre>
+
+    <h2>(5) sum.c</h2>
+    <p>This program performs cumulative summation over an array, testing the CPU's arithmetic operations and loop handling capabilities.</p>
+    <pre><code>#include "types.h"
+#include "memory_map.h"
+
+// Source: one of the bmark tests from ASIC lab
+// John C. Wright
+// johnwright@eecs.berkeley.edu
+// Do some random stuff to test EECS151/251A rv32ui processors
+
+#define NUMELTS 64
+#define CONST   2080
+
+unsigned int assert_equals(unsigned int a, unsigned int b);
+int x[NUMELTS];
+int y[NUMELTS];
+
+void main() {
+  csr_tohost(0);
+  int i;
+  int j;
+  for(i = 0; i < NUMELTS; i++) {
+    x[i] = i + 1;
+  }
+
+  for(i = 0; i < NUMELTS; i++) {
+    y[i] = 0;
+    for(j=0; j < i+1; j++) {
+      y[i] = y[i] + x[j];
+    }
+  }
+
+  if (assert_equals(y[NUMELTS-1], CONST)) {
+    csr_tohost(1);
+  } else {
+    csr_tohost(2);
+  }
+
+  // spin
+  for( ; ; ) {
+    asm volatile ("nop");
+  }
+}
+
+unsigned int assert_equals(unsigned int a, unsigned int b) {
+  return (a == b);
+}</code></pre>
+
+    <h2>(6) vecadd.c</h2>
+    <p>This program performs vector addition on large arrays, testing the CPU's performance with large data sets and memory bandwidth.</p>
+    <pre><code>#include "types.h"
+#include "ascii.h"
+#include "uart.h"
+#include "memory_map.h"
+
+#define BUF_LEN 128
+
+#define DIM 64
+#define SIZE 1024
+static int32_t A[SIZE] = {0}; // 3x1024x32b 16384x32b
+static int32_t B[SIZE] = {0};
+static int32_t C[SIZE] = {0};
+
+typedef void (*entry_t)(void);
+
+int main(int argc, char**argv) {
+  csr_tohost(0);
+  int8_t buffer[BUF_LEN];
+
+  int i, j;
+  int chksum = 0;
+
+  for (i = 0; i < SIZE; i++) {
+    A[i] = 1;
+    B[i] = i;
+  }
+
+  for (i = 0; i < SIZE; i++) {
+    C[i] = A[i] + B[i];
+  }
+
+  for (i = 0; i < SIZE; i++) {
+    chksum += C[i];
+  }
+
+  csr_tohost(0);
+
+  if (chksum == 0x80200) {
+    // pass
+    csr_tohost(1);
+  } else {
+    // fail code 2
+    csr_tohost(2);
+  }
+
+  // spin
+  for( ; ; ) {
+    asm volatile ("nop");
+  }
+}</code></pre>
+
+
+</div> <!-- End of content -->
+
+<script>
+    let container = document.getElementById('image-container');
+    let img = document.getElementById('design-image');
+    let isDragging = false;
+    let startX, startY;
+    let imgX = 0, imgY = 0;
+    let scale = 1;
+
+    // Handle dragging
+    container.addEventListener('mousedown', function(e) {
+        isDragging = true;
+        startX = e.clientX - imgX;
+        startY = e.clientY - imgY;
+    });
+    container.addEventListener('mousemove', function(e) {
+        if (isDragging) {
+            imgX = e.clientX - startX;
+            imgY = e.clientY - startY;
+            img.style.transform = `translate(${imgX}px, ${imgY}px) scale(${scale})`;
+        }
+    });
+    container.addEventListener('mouseup', function() {
+        isDragging = false;
+    });
+    container.addEventListener('mouseleave', function() {
+        isDragging = false;
+    });
+
+    // Handle zooming with mouse wheel
+    container.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        let rect = container.getBoundingClientRect();
+        let offsetX = e.clientX - rect.left - imgX;
+        let offsetY = e.clientY - rect.top - imgY;
+        let delta = e.deltaY > 0 ? -0.1 : 0.1;
+        let newScale = Math.min(Math.max(0.5, scale + delta), 5); // Limit zoom levels
+
+        // Adjust image position to keep the focus point under the cursor
+        imgX -= offsetX * (newScale - scale) / scale;
+        imgY -= offsetY * (newScale - scale) / scale;
+
+        scale = newScale;
+        img.style.transform = `translate(${imgX}px, ${imgY}px) scale(${scale})`;
+    });
+
+    // Center the image when it loads
+    img.addEventListener('load', function() {
+        let containerRect = container.getBoundingClientRect();
+        let imgWidth = img.naturalWidth;
+        let imgHeight = img.naturalHeight;
+
+        // Calculate scaled image dimensions
+        let scaledWidth = imgWidth * scale;
+        let scaledHeight = imgHeight * scale;
+
+        // Center the image
+        imgX = (containerRect.width - scaledWidth) / 2;
+        imgY = (containerRect.height - scaledHeight) / 2;
+
+        img.style.transform = `translate(${imgX}px, ${imgY}px) scale(${scale})`;
+    });
+</script>
+
+</body>
+</html>
